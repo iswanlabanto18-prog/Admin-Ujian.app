@@ -1,0 +1,6 @@
+{
+  "name": "Admin Ujian Online - Panel Guru & Generator QR",
+  "description": "Aplikasi Web Admin Guru untuk input data ujian, Google Form, PIN, zona waktu, dan generator QR Code ID Ujian Firestore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

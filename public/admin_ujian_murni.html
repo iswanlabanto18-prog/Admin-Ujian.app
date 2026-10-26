@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Ujian - Panel Guru & Generator QR ID Ujian</title>
+  
+  <!-- Font Google: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Library QR Code: qrcode.js via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Firebase App & Firestore SDK (Compat v10 via CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #0f172a;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --radius: 14px;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      color: white;
+      padding: 28px 24px;
+      border-radius: var(--radius);
+      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.2);
+      margin-bottom: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-title h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+
+    .header-title p {
+      font-size: 0.88rem;
+      opacity: 0.9;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+    }
+
+    .status-dot.warning {
+      background: #fbbf24;
+    }
+
+    /* Layout Grid */
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 820px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Card Box */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Form Styles */
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 500px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 6px;
+    }
+
+    .required {
+      color: var(--danger);
+    }
+
+    input, select {
+      width: 100%;
+      padding: 11px 14px;
+      font-size: 0.9rem;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text-main);
+      background-color: #fff;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .input-pin {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      letter-spacing: 0.1em;
+      font-weight: 600;
+    }
+
+    .help-text {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Button */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 13px 20px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      margin-top: 10px;
+    }
+
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+
+    /* Result & QR Card */
+    .result-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      justify-content: center;
+      min-height: 380px;
+    }
+
+    .placeholder-state {
+      padding: 40px 16px;
+      color: var(--text-muted);
+    }
+
+    .placeholder-state svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 12px;
+      stroke: #cbd5e1;
+    }
+
+    .active-result {
+      display: none;
+      width: 100%;
+    }
+
+    .qr-frame {
+      background: white;
+      padding: 16px;
+      border-radius: 14px;
+      border: 2px dashed #cbd5e1;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      margin: 16px 0;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    }
+
+    #qrcode img, #qrcode canvas {
+      display: block;
+      margin: 0 auto;
+    }
+
+    .doc-id-box {
+      background: #f8fafc;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin: 12px 0 16px;
+      width: 100%;
+    }
+
+    .doc-id-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .doc-id-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--primary);
+      word-break: break-all;
+      user-select: all;
+    }
+
+    .exam-name-display {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .zone-pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 9999px;
+      background: #e0f2fe;
+      color: #0369a1;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .qr-note {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      background: #f1f5f9;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      display: none;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        padding: 0;
+        background: white;
+      }
+      .no-print, header, .form-card, footer {
+        display: none !important;
+      }
+      .grid-layout {
+        display: block !important;
+      }
+      .card {
+        border: none !important;
+        box-shadow: none !important;
+      }
+      .qr-frame {
+        border: 2px solid black !important;
+      }
+      .active-result {
+        display: block !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- Header Admin Ujian -->
+    <header>
+      <div class="header-title">
+        <h1>Admin Ujian (Panel Guru)</h1>
+        <p>Input data ujian &amp; otomatis buat QR Code unik untuk siswa</p>
+      </div>
+      <div class="status-badge" id="firebase-status-badge">
+        <span class="status-dot warning" id="status-dot"></span>
+        <span id="status-text">Memeriksa Firebase...</span>
+      </div>
+    </header>
+
+    <!-- Konten Utama: 2 Kolom -->
+    <div class="grid-layout">
+      
+      <!-- Kolom Kiri: Form Input Data Ujian -->
+      <section class="card form-card">
+        <div class="card-title">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          Form Input Data Ujian
+        </div>
+
+        <form id="form-ujian" onsubmit="handleSimpanUjian(event)">
+          <!-- 1. Nama Ujian -->
+          <div class="form-group">
+            <label for="nama_ujian">Nama Ujian <span class="required">*</span></label>
+            <input type="text" id="nama_ujian" required placeholder="Contoh: Penilaian Akhir Semester (PAS) Matematika X">
+          </div>
+
+          <!-- 2. Link Google Form -->
+          <div class="form-group">
+            <label for="link_gform">Link Google Form <span class="required">*</span></label>
+            <input type="url" id="link_gform" required placeholder="https://docs.google.com/forms/d/e/.../viewform">
+            <div class="help-text">Pastikan tautan dapat diakses oleh siswa saat ujian dimulai.</div>
+          </div>
+
+          <!-- 3 & 4. PIN Masuk & PIN Keluar -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="pin_masuk">PIN Masuk <span class="required">*</span></label>
+              <input type="text" id="pin_masuk" class="input-pin" required maxlength="10" placeholder="Misal: 123456">
+              <div class="help-text">PIN untuk siswa mulai ujian</div>
+            </div>
+
+            <div class="form-group">
+              <label for="pin_keluar">PIN Keluar <span class="required">*</span></label>
+              <input type="text" id="pin_keluar" class="input-pin" required maxlength="10" placeholder="Misal: 654321">
+              <div class="help-text">PIN saat siswa submit ujian</div>
+            </div>
+          </div>
+
+          <!-- 5 & 6. PIN Pengawas & Zona Waktu -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="pin_pengawas">PIN Pengawas <span class="required">*</span></label>
+              <input type="text" id="pin_pengawas" class="input-pin" required maxlength="10" placeholder="Misal: 998877">
+              <div class="help-text">Kunci darurat guru / pengawas</div>
+            </div>
+
+            <div class="form-group">
+              <label for="zona_waktu">Zona Waktu <span class="required">*</span></label>
+              <select id="zona_waktu" required>
+                <option value="WIB" selected>WIB (Waktu Indonesia Barat / UTC+7)</option>
+                <option value="WITA">WITA (Waktu Indonesia Tengah / UTC+8)</option>
+                <option value="WIT">WIT (Waktu Indonesia Timur / UTC+9)</option>
+              </select>
+              <div class="help-text">Zona waktu pelaksanaan ujian</div>
+            </div>
+          </div>
+
+          <!-- Tombol Simpan Ujian -->
+          <button type="submit" id="btn-simpan" class="btn btn-primary">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+            </svg>
+            <span id="btn-text">Simpan Ujian</span>
+          </button>
+        </form>
+      </section>
+
+      <!-- Kolom Kanan: Hasil & QR Code (HANYA Berisi ID Ujian) -->
+      <section class="card">
+        <div class="card-title">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+          </svg>
+          QR Code ID Ujian
+        </div>
+
+        <div class="result-container">
+          <!-- Placeholder ketika belum simpan -->
+          <div id="placeholder-box" class="placeholder-state">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z"></path>
+            </svg>
+            <p><strong>Belum ada ujian yang disimpan</strong></p>
+            <p style="font-size: 0.8rem; margin-top: 4px;">Isi formulir di sebelah kiri dan klik <em>Simpan Ujian</em>. QR Code ID Ujian akan otomatis tampil di sini.</p>
+          </div>
+
+          <!-- Hasil Aktif: QR Code & ID Ujian -->
+          <div id="active-result-box" class="active-result">
+            <div class="exam-name-display" id="res-exam-name">-</div>
+            <div class="zone-pill" id="res-zone-pill">WIB</div>
+
+            <!-- Wadah QR Code dari Library qrcode.js -->
+            <div class="qr-frame">
+              <div id="qrcode"></div>
+            </div>
+
+            <!-- Box ID Ujian dari Firestore -->
+            <div class="doc-id-box">
+              <div class="doc-id-label">ID Dokumen Ujian (Firestore)</div>
+              <div class="doc-id-value" id="res-doc-id">...</div>
+            </div>
+
+            <div class="qr-note">
+              ℹ️ QR Code di atas <strong>HANYA</strong> berisi teks ID Ujian untuk discan oleh aplikasi peserta didik.
+            </div>
+
+            <div class="btn-group no-print">
+              <button type="button" class="btn btn-secondary" onclick="salinIdUjian()">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                Salin ID
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="window.print()">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                Cetak Kartu
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast">ID Ujian disalin ke clipboard!</div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- SCRIPT LOGIKA JAVASCRIPT & INISIALISASI FIREBASE FIRESTORE         -->
+  <!-- ================================================================= -->
+  <script>
+    // =================================================================
+    // MASUKKAN FIREBASE CONFIG DI SINI
+    // =================================================================
+    const firebaseConfig = {
+      apiKey: "MASUKKAN_API_KEY_ANDA",
+      authDomain: "PROJECT_ID_ANDA.firebaseapp.com",
+      projectId: "PROJECT_ID_ANDA",
+      storageBucket: "PROJECT_ID_ANDA.appspot.com",
+      messagingSenderId: "SENDER_ID_ANDA",
+      appId: "APP_ID_ANDA"
+    };
+    // =================================================================
+
+    let db = null;
+    let qrGenerator = null;
+    let isFirebaseReady = false;
+
+    // Periksa dan Inisialisasi Firebase
+    try {
+      const isConfigProvided = firebaseConfig.apiKey && 
+                               firebaseConfig.apiKey !== "MASUKKAN_API_KEY_ANDA" && 
+                               firebaseConfig.projectId !== "PROJECT_ID_ANDA";
+
+      if (isConfigProvided) {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        isFirebaseReady = true;
+
+        document.getElementById('status-dot').className = 'status-dot';
+        document.getElementById('status-text').innerText = 'Firestore Terhubung: ' + firebaseConfig.projectId;
+      } else {
+        document.getElementById('status-dot').className = 'status-dot warning';
+        document.getElementById('status-text').innerText = 'Mode Demo (Silakan isi Firebase Config)';
+      }
+    } catch (err) {
+      console.warn("Inisialisasi Firebase gagal atau belum lengkap:", err);
+      document.getElementById('status-dot').className = 'status-dot warning';
+      document.getElementById('status-text').innerText = 'Mode Simulasi (Config Belum Lengkap)';
+    }
+
+    // Fungsi Utama: Simpan Ujian ke Firestore & Buat QR Code
+    async function handleSimpanUjian(event) {
+      event.preventDefault();
+
+      const btnSimpan = document.getElementById('btn-simpan');
+      const btnText = document.getElementById('btn-text');
+
+      // Ambil nilai dari Form
+      const namaUjian = document.getElementById('nama_ujian').value.trim();
+      const linkGform = document.getElementById('link_gform').value.trim();
+      const pinMasuk = document.getElementById('pin_masuk').value.trim();
+      const pinKeluar = document.getElementById('pin_keluar').value.trim();
+      const pinPengawas = document.getElementById('pin_pengawas').value.trim();
+      const zonaWaktu = document.getElementById('zona_waktu').value;
+
+      // Objek data ujian yang akan disimpan
+      const payloadUjian = {
+        nama_ujian: namaUjian,
+        link_gform: linkGform,
+        pin_masuk: pinMasuk,
+        pin_keluar: pinKeluar,
+        pin_pengawas: pinPengawas,
+        zona_waktu: zonaWaktu,
+        created_at: (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.FieldValue)
+          ? firebase.firestore.FieldValue.serverTimestamp()
+          : new Date().toISOString()
+      };
+
+      // Tampilkan status proses (loading)
+      btnSimpan.disabled = true;
+      btnText.innerText = 'Menyimpan ke Firestore...';
+
+      let docIdUjian = '';
+
+      try {
+        if (isFirebaseReady && db) {
+          // SIMPAN KE KOLEKSI 'data_ujian' DI FIRESTORE
+          const docRef = await db.collection('data_ujian').add(payloadUjian);
+          docIdUjian = docRef.id; // Document ID unik dari Firestore
+          console.log("Ujian berhasil disimpan di Firestore dengan ID:", docIdUjian);
+        } else {
+          // Simulasi jika Firebase Config belum dimasukkan oleh guru
+          await new Promise(resolve => setTimeout(resolve, 800));
+          docIdUjian = 'demo_' + Math.random().toString(36).substring(2, 10) + Date.now().toString(36).slice(-4);
+          showToast("Simulasi berhasil (ID Ujian dibuat). Masukkan config di kode untuk Firestore asli.");
+        }
+
+        // Tampilkan Hasil & Render QR Code
+        tampilkanHasilDanQR(docIdUjian, namaUjian, zonaWaktu);
+
+      } catch (error) {
+        console.error("Gagal menyimpan ke Firestore:", error);
+        alert("Gagal menyimpan data ujian ke Firestore: " + (error.message || error));
+      } finally {
+        btnSimpan.disabled = false;
+        btnText.innerText = 'Simpan Ujian';
+      }
+    }
+
+    // Fungsi Render QR Code Menggunakan qrcode.js (HANYA berisi docIdUjian)
+    function tampilkanHasilDanQR(docIdUjian, namaUjian, zonaWaktu) {
+      // 1. Tampilkan box hasil & sembunyikan placeholder
+      document.getElementById('placeholder-box').style.display = 'none';
+      const resultBox = document.getElementById('active-result-box');
+      resultBox.style.display = 'block';
+
+      // 2. Set teks data
+      document.getElementById('res-exam-name').innerText = namaUjian;
+      document.getElementById('res-zone-pill').innerText = zonaWaktu;
+      document.getElementById('res-doc-id').innerText = docIdUjian;
+
+      // 3. Bersihkan QR sebelumnya jika ada
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = '';
+
+      // 4. Generate QR Code Baru: QR Code tersebut HANYA berisi teks 'ID Ujian'
+      qrGenerator = new QRCode(qrContainer, {
+        text: docIdUjian, // HANYA berisi Document ID dari Firestore!
+        width: 190,
+        height: 190,
+        colorDark: "#0f172a",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      // Scroll halus ke kartu hasil pada layar smartphone
+      if (window.innerWidth < 820) {
+        resultBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      showToast("Ujian berhasil disimpan! QR Code ID Ujian siap.");
+    }
+
+    // Helper: Salin ID Ujian
+    function salinIdUjian() {
+      const docId = document.getElementById('res-doc-id').innerText;
+      if (!docId || docId === '...') return;
+      navigator.clipboard.writeText(docId).then(() => {
+        showToast("ID Ujian (" + docId + ") berhasil disalin!");
+      }).catch(() => {
+        alert("ID Ujian: " + docId);
+      });
+    }
+
+    // Helper: Toast Notifikasi
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.display = 'block';
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3500);
+    }
+  </script>
+</body>
+</html>
